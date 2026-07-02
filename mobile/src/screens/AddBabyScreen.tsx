@@ -492,7 +492,7 @@ export default function AddBabyScreen() {
                 </>
               )}
 
-              <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)} disabled={loading}>
+              <TouchableOpacity style={styles.button} onPress={handleSubmit((data) => onSubmit(data, false))} disabled={loading}>
                 {loading ? <ActivityIndicator color="#ffffff" /> : <Text allowFontScaling={false} style={styles.buttonText}>{babyId ? 'Update Baby' : 'Save & Register Baby'}</Text>}
               </TouchableOpacity>
             </View>
