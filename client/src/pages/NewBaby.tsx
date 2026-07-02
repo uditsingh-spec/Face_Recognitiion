@@ -451,7 +451,7 @@ const NewBaby: React.FC = () => {
                     </div>
                     <Button 
                       variant="secondary" 
-                      onClick={() => navigate(`/baby/${baby._id}`)}
+                      onClick={() => navigate(`/babies/${baby._id}`)}
                     >
                       View
                     </Button>
