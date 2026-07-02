@@ -245,7 +245,8 @@ export default function AddBabyScreen() {
           await api.put(`/babies/${babyId}`, formData);
           Alert.alert('Success', 'Baby updated successfully!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else {
-          await api.post('/babies', formData);
+          const res = await api.post('/babies', formData);
+          console.log('BABY ADDED SUCCESSFULLY - SERVER RESPONSE:', res.status, res.data);
           Alert.alert('Success', 'Baby added successfully!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         }
       } catch (apiError: any) {
@@ -258,8 +259,10 @@ export default function AddBabyScreen() {
           await queueRequest(url, method, jsonPayload, imageToUpload, tempId);
           Alert.alert('Saved Offline', 'Your data was saved locally and will sync when internet is restored.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else if (apiError.response.status === 409 && apiError.response.data?.code === 'DUPLICATE_BABY') {
+          console.log('DUPLICATE CAUGHT:', apiError.response.data);
           setConflictBaby(apiError.response.data.existingBaby);
         } else {
+          console.log('API ERROR CAUGHT:', apiError.response?.status, apiError.response?.data);
           throw apiError;
         }
       }
