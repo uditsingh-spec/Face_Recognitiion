@@ -73,7 +73,7 @@ export default function AddBabyScreen() {
   const babyId = route.params?.babyId;
 
   const [loading, setLoading] = useState(false);
-  const [conflictBaby, setConflictBaby] = useState<any>(null);
+  const [conflictBabies, setConflictBabies] = useState<any[] | null>(null);
   const [fetching, setFetching] = useState(!!babyId);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -260,7 +260,7 @@ export default function AddBabyScreen() {
           Alert.alert('Saved Offline', 'Your data was saved locally and will sync when internet is restored.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else if (apiError.response.status === 409 && apiError.response.data?.code === 'DUPLICATE_BABY') {
           console.log('DUPLICATE CAUGHT:', apiError.response.data);
-          setConflictBaby(apiError.response.data.existingBaby);
+          setConflictBabies(apiError.response.data.existingBabies);
         } else {
           console.log('API ERROR CAUGHT:', apiError.response?.status, apiError.response?.data);
           throw apiError;
@@ -274,7 +274,7 @@ export default function AddBabyScreen() {
   };
 
   const handleAddAnyway = () => {
-    setConflictBaby(null);
+    setConflictBabies(null);
     handleSubmit((data) => onSubmit(data, true))();
   };
 
@@ -501,50 +501,48 @@ export default function AddBabyScreen() {
       )}
 
       {/* Duplicate Baby Modal */}
-      <Modal visible={!!conflictBaby} transparent={true} animationType="fade">
+      <Modal visible={!!conflictBabies} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text allowFontScaling={false} style={styles.modalTitle}>Similar Baby Found</Text>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <Text allowFontScaling={false} style={styles.modalTitle}>Similar Babies Found</Text>
             <Text allowFontScaling={false} style={styles.modalText}>
-              A baby with the same Mother Name, Gender, Weight, and Gestational Age was previously added.
+              The following babies match the Mother Name, Gender, Weight, and Gestational Age:
             </Text>
 
-            {conflictBaby && (
-              <View style={styles.conflictInfo}>
-                {conflictBaby.motherImage ? (
-                  <Image source={{ uri: conflictBaby.motherImage }} style={styles.conflictImg} />
-                ) : (
-                  <View style={styles.conflictImgPlaceholder}>
-                    <Text allowFontScaling={false} style={styles.conflictImgInitial}>
-                      {conflictBaby.motherName.charAt(0).toUpperCase()}
-                    </Text>
+            <ScrollView style={{ width: '100%', marginVertical: 12, maxHeight: 300 }}>
+              {conflictBabies?.map((baby, idx) => (
+                <View key={idx} style={[styles.conflictInfo, { marginBottom: 8 }]}>
+                  {baby.motherImage ? (
+                    <Image source={{ uri: baby.motherImage }} style={styles.conflictImg} />
+                  ) : (
+                    <View style={styles.conflictImgPlaceholder}>
+                      <Text allowFontScaling={false} style={styles.conflictImgInitial}>
+                        {baby.motherName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text allowFontScaling={false} style={styles.conflictName}>{baby.motherName}</Text>
+                    <Text allowFontScaling={false} style={styles.conflictId}>{baby.displayId}</Text>
                   </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text allowFontScaling={false} style={styles.conflictName}>{conflictBaby.motherName}</Text>
-                  <Text allowFontScaling={false} style={styles.conflictId}>{conflictBaby.displayId}</Text>
+                  <TouchableOpacity style={styles.viewBtn} onPress={() => {
+                    setConflictBabies(null);
+                    navigation.navigate('BabyDetails', { babyId: baby._id });
+                  }}>
+                    <Text style={styles.viewBtnText}>View</Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
+              ))}
+            </ScrollView>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSecondary]}
-                onPress={() => {
-                  setConflictBaby(null);
-                  if (conflictBaby) navigation.navigate('BabyDetails', { babyId: conflictBaby._id });
-                }}
-              >
-                <Text allowFontScaling={false} style={styles.modalBtnSecondaryText}>Open Stored Details</Text>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSecondary]} onPress={() => setConflictBabies(null)}>
+                <Text allowFontScaling={false} style={styles.modalBtnSecondaryText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={handleAddAnyway}>
-                <Text allowFontScaling={false} style={styles.modalBtnPrimaryText}>Add This Baby</Text>
+                <Text allowFontScaling={false} style={styles.modalBtnPrimaryText}>Add Anyway</Text>
               </TouchableOpacity>
             </View>
-            
-            <TouchableOpacity style={{ marginTop: 16 }} onPress={() => setConflictBaby(null)}>
-              <Text allowFontScaling={false} style={{ color: '#64748b', textAlign: 'center', fontWeight: '500' }}>Cancel</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

@@ -72,7 +72,7 @@ const NewBaby: React.FC = () => {
   const navigate = useNavigate();
   const [motherImage, setMotherImage] = useState<File | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
-  const [conflictBaby, setConflictBaby] = useState<any>(null);
+  const [conflictBabies, setConflictBabies] = useState<any[] | null>(null);
 
 
   const { register, handleSubmit, control, watch, formState: { errors } } = useForm<NewBabyFormValues>({
@@ -102,7 +102,7 @@ const NewBaby: React.FC = () => {
       console.error('[NewBaby] Status:', error.response?.status);
       console.error('[NewBaby] Data:', error.response?.data);
       if (error.response?.status === 409 && error.response?.data?.code === 'DUPLICATE_BABY') {
-        setConflictBaby(error.response.data.existingBaby);
+        setConflictBabies(error.response.data.existingBabies);
       } else {
         setErrorMsg(error.response?.data?.message || 'Failed to register baby');
       }
@@ -164,8 +164,8 @@ const NewBaby: React.FC = () => {
   };
 
   const handleAddAnyway = () => {
-    setConflictBaby(null);
-    handleSubmit((data) => onSubmit(data, true))();
+    setConflictBabies(null);
+    handleSubmit((data) => onSubmit(data as any, true))();
   };
 
   return (
@@ -182,7 +182,7 @@ const NewBaby: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+      <form onSubmit={handleSubmit((data) => onSubmit(data as any, false))} className="space-y-6">
         
         {/* MOTHER INFO CARD */}
         <FormCard title="Mother's Information">
@@ -425,42 +425,54 @@ const NewBaby: React.FC = () => {
         </form>
 
         <ModalWrapper
-          isOpen={!!conflictBaby}
-          onClose={() => setConflictBaby(null)}
-          title="Similar Baby Found"
+          isOpen={!!conflictBabies}
+          onClose={() => setConflictBabies(null)}
+          title="Similar Babies Found"
         >
-          {conflictBaby && (
-            <div className="flex flex-col items-center text-center space-y-4">
+          {conflictBabies && (
+            <div className="flex flex-col items-center text-center space-y-4 max-h-[80vh]">
               <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm w-full border border-amber-200">
-                A baby with the same Mother Name, Gender, Weight, and Gestational Age was previously added.
+                The following babies match the Mother Name, Gender, Weight, and Gestational Age:
               </div>
               
-              {conflictBaby.motherImage ? (
-                <img src={conflictBaby.motherImage} alt="Mother" className="w-32 h-32 rounded-full object-cover shadow-md" />
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center shadow-md">
-                  <span className="text-4xl text-slate-400 font-bold">{conflictBaby.motherName.charAt(0).toUpperCase()}</span>
-                </div>
-              )}
-              
-              <div>
-                <h4 className="text-xl font-bold text-slate-800">{conflictBaby.motherName}</h4>
-                <p className="text-slate-500 font-medium">{conflictBaby.displayId}</p>
+              <div className="w-full overflow-y-auto max-h-[40vh] space-y-3">
+                {conflictBabies.map((baby, idx) => (
+                  <div key={idx} className="flex items-center gap-4 p-3 bg-white border rounded-xl">
+                    {baby.motherImage ? (
+                      <img src={baby.motherImage} alt="Mother" className="w-16 h-16 rounded-full object-cover shadow-sm" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center shadow-sm">
+                        <span className="text-xl text-slate-400 font-bold">{baby.motherName.charAt(0).toUpperCase()}</span>
+                      </div>
+                    )}
+                    <div className="text-left flex-1">
+                      <h4 className="text-md font-bold text-slate-800">{baby.motherName}</h4>
+                      <p className="text-slate-500 text-sm font-medium">{baby.displayId}</p>
+                    </div>
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => navigate(`/baby/${baby._id}`)}
+                    >
+                      View
+                    </Button>
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-4 w-full mt-6">
                 <Button 
                   variant="secondary" 
                   className="flex-1"
-                  onClick={() => navigate(`/baby/${conflictBaby._id}`)}
+                  onClick={() => setConflictBabies(null)}
                 >
-                  Open Stored Details
+                  Cancel
                 </Button>
                 <Button 
                   className="flex-1"
                   onClick={handleAddAnyway}
                 >
-                  Add This Baby
+                  Add Anyway
                 </Button>
               </div>
             </div>

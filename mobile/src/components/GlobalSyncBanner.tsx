@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, DeviceEventEmitter, StyleSheet, Modal, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ActivityIndicator, DeviceEventEmitter, StyleSheet, Modal, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { navigationRef } from '../navigation/AppNavigator';
 import { getDB } from '../services/db';
 import { syncPendingRequests } from '../services/syncService';
 
 export const GlobalSyncBanner: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'failed' | null>(null);
-  const [conflictData, setConflictData] = useState<{ queueId: number; payload: any; existingBaby: any } | null>(null);
+  const [conflictData, setConflictData] = useState<{ queueId: number; payload: any; existingBabies: any[] } | null>(null);
 
   useEffect(() => {
     const subStart = DeviceEventEmitter.addListener('syncStarted', () => setSyncStatus('syncing'));
@@ -37,7 +37,8 @@ export const GlobalSyncBanner: React.FC = () => {
     await db.runAsync('DELETE FROM sync_queue WHERE id = ?', conflictData.queueId);
     
     if (navigationRef.isReady()) {
-      navigationRef.navigate('BabyDetails', { babyId: conflictData.existingBaby._id });
+      // Navigate to the first baby in the array if discarded
+      navigationRef.navigate('BabyDetails', { babyId: conflictData.existingBabies[0]._id });
     }
     setConflictData(null);
     syncPendingRequests(); // Resume sync
@@ -76,22 +77,26 @@ export const GlobalSyncBanner: React.FC = () => {
               An offline record matches an existing baby on the server. Do you want to add it anyway?
             </Text>
 
-            {conflictData?.existingBaby && (
-              <View style={styles.conflictInfo}>
-                {conflictData.existingBaby.motherImage ? (
-                  <Image source={{ uri: conflictData.existingBaby.motherImage }} style={styles.conflictImg} />
-                ) : (
-                  <View style={styles.conflictImgPlaceholder}>
-                    <Text allowFontScaling={false} style={styles.conflictImgInitial}>
-                      {conflictData.existingBaby.motherName.charAt(0).toUpperCase()}
-                    </Text>
+            {conflictData?.existingBabies && (
+              <ScrollView style={{ width: '100%', marginVertical: 12, maxHeight: 300 }}>
+                {conflictData.existingBabies.map((baby, idx) => (
+                  <View key={idx} style={[styles.conflictInfo, { marginBottom: 8 }]}>
+                    {baby.motherImage ? (
+                      <Image source={{ uri: baby.motherImage }} style={styles.conflictImg} />
+                    ) : (
+                      <View style={styles.conflictImgPlaceholder}>
+                        <Text allowFontScaling={false} style={styles.conflictImgInitial}>
+                          {baby.motherName.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text allowFontScaling={false} style={styles.conflictName}>{baby.motherName}</Text>
+                      <Text allowFontScaling={false} style={styles.conflictId}>{baby.displayId}</Text>
+                    </View>
                   </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text allowFontScaling={false} style={styles.conflictName}>{conflictData.existingBaby.motherName}</Text>
-                  <Text allowFontScaling={false} style={styles.conflictId}>{conflictData.existingBaby.displayId}</Text>
-                </View>
-              </View>
+                ))}
+              </ScrollView>
             )}
 
             <View style={styles.modalButtons}>

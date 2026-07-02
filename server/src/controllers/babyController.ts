@@ -58,18 +58,18 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
       const forceSave = req.body.forceSave === 'true' || req.body.forceSave === true;
 
       if (!forceSave) {
-        const existingBaby = await Baby.findOne({
+        const existingBabies = await Baby.find({
           $or: [
             { displayId: new RegExp(`^${baseIdA}`) },
             { displayId: new RegExp(`^${baseIdB}`) }
           ]
         }).sort({ registeredAt: -1 });
 
-        if (existingBaby) {
+        if (existingBabies.length > 0) {
           res.status(409).json({
             message: 'Similar baby ID found',
             code: 'DUPLICATE_BABY',
-            existingBaby
+            existingBabies
           });
           return;
         }
@@ -143,13 +143,13 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
       const forceSave = req.body.forceSave === 'true' || req.body.forceSave === true;
 
       if (!forceSave) {
-        const existingBaby = await Baby.findOne({ displayId: { $regex: `^${baseId}` } }).sort({ registeredAt: -1 });
+        const existingBabies = await Baby.find({ displayId: { $regex: `^${baseId}` } }).sort({ registeredAt: -1 });
         
-        if (existingBaby) {
+        if (existingBabies.length > 0) {
           res.status(409).json({
             message: 'Similar baby ID found',
             code: 'DUPLICATE_BABY',
-            existingBaby
+            existingBabies
           });
           return;
         }

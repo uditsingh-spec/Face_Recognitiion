@@ -131,7 +131,7 @@ export const syncPendingRequests = async () => {
           DeviceEventEmitter.emit('syncDuplicateFound', {
             queueId: row.id,
             payload: payload,
-            existingBaby: err.response.data.existingBaby
+            existingBabies: err.response.data.existingBabies
           });
           break; // Stop syncing until user resolves
         }
