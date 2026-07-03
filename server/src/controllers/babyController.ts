@@ -278,7 +278,7 @@ export const deleteBaby = async (req: Request, res: Response, next: NextFunction
     
     // --- Reassign Display IDs for remaining duplicates ---
     const deletedPrefixMatch = deletedDisplayId.match(/^(.+?)(?:-T\d)?$/);
-    const deletedPrefix = deletedPrefixMatch ? deletedPrefixMatch[1] : deletedDisplayId;
+    const deletedPrefix = (deletedPrefixMatch && deletedPrefixMatch[1]) ? deletedPrefixMatch[1] : deletedDisplayId;
     const baseIdStr = deletedPrefix.replace(/ \(\d+\)$/, '');
     
     const similarBabies = await Baby.find({ 
@@ -289,13 +289,13 @@ export const deleteBaby = async (req: Request, res: Response, next: NextFunction
       const prefixes = new Set<string>();
       for (const b of similarBabies) {
         const match = b.displayId.match(/^(.+?)(?:-T\d)?$/);
-        if (match) prefixes.add(match[1]);
+        if (match && match[1]) prefixes.add(match[1]);
       }
 
       const sortedPrefixes = Array.from(prefixes).sort((a, b) => {
         const getNum = (p: string) => {
           const m = p.match(/ \((\d+)\)$/);
-          return m ? parseInt(m[1], 10) : 0;
+          return m && m[1] ? parseInt(m[1], 10) : 0;
         };
         return getNum(a) - getNum(b);
       });
@@ -308,7 +308,7 @@ export const deleteBaby = async (req: Request, res: Response, next: NextFunction
 
       for (const b of similarBabies) {
         const match = b.displayId.match(/^(.+?)(?:-T\d)?$/);
-        if (match) {
+        if (match && match[1]) {
           const oldPrefix = match[1];
           const newPrefix = prefixMapping[oldPrefix];
           if (newPrefix && newPrefix !== oldPrefix) {
