@@ -374,8 +374,8 @@ export const getBabySamples = async (req: Request, res: Response, next: NextFunc
         f1_d6_s: sample.f1_d6_s, f2_d6_s: sample.f2_d6_s, f3_d6_s: sample.f3_d6_s, f4_d6_s: sample.f4_d6_s, f5_d6_s: sample.f5_d6_s,
         f6_d6_s: sample.f6_d6_s, f7_d6_s: sample.f7_d6_s, f8_d6_s: sample.f8_d6_s, f9_d6_s: sample.f9_d6_s, f10_d6_s: sample.f10_d6_s,
         remarks: sample.remarks,
-        createdDate: dateObj.toLocaleDateString('en-GB').replace(/\//g, '-'),
-        createdTime: dateObj.toLocaleTimeString(),
+        createdDate: dateObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata' }).replace(/\//g, '-'),
+        createdTime: dateObj.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata' }),
         createdBy: sample.createdBy,
       };
     });
