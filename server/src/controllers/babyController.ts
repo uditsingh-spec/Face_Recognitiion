@@ -273,8 +273,53 @@ export const deleteBaby = async (req: Request, res: Response, next: NextFunction
     await DailyObservation.deleteMany({ babyId: baby._id });
 
     // Delete the baby
+    const deletedDisplayId = baby.displayId;
     await baby.deleteOne();
     
+    // --- Reassign Display IDs for remaining duplicates ---
+    const deletedPrefixMatch = deletedDisplayId.match(/^(.+?)(?:-T\d)?$/);
+    const deletedPrefix = deletedPrefixMatch ? deletedPrefixMatch[1] : deletedDisplayId;
+    const baseIdStr = deletedPrefix.replace(/ \(\d+\)$/, '');
+    
+    const similarBabies = await Baby.find({ 
+      displayId: { $regex: new RegExp(`^${baseIdStr}(?: \\(\\d+\\))?(?:-T\\d)?$`) } 
+    });
+
+    if (similarBabies.length > 0) {
+      const prefixes = new Set<string>();
+      for (const b of similarBabies) {
+        const match = b.displayId.match(/^(.+?)(?:-T\d)?$/);
+        if (match) prefixes.add(match[1]);
+      }
+
+      const sortedPrefixes = Array.from(prefixes).sort((a, b) => {
+        const getNum = (p: string) => {
+          const m = p.match(/ \((\d+)\)$/);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+        return getNum(a) - getNum(b);
+      });
+
+      const prefixMapping: Record<string, string> = {};
+      sortedPrefixes.forEach((oldPrefix, index) => {
+        const newPrefix = index === 0 ? baseIdStr : `${baseIdStr} (${index})`;
+        prefixMapping[oldPrefix] = newPrefix;
+      });
+
+      for (const b of similarBabies) {
+        const match = b.displayId.match(/^(.+?)(?:-T\d)?$/);
+        if (match) {
+          const oldPrefix = match[1];
+          const newPrefix = prefixMapping[oldPrefix];
+          if (newPrefix && newPrefix !== oldPrefix) {
+            b.displayId = b.displayId.replace(oldPrefix, newPrefix);
+            await b.save();
+          }
+        }
+      }
+    }
+    // --- End Reassign ---
+
     res.json({ message: 'Baby removed successfully' });
   } catch (error) {
     next(error);

@@ -341,6 +341,7 @@ export default function SampleFormScreen() {
             onChangeText={onChange}
             value={value?.toString() || ''}
             placeholder={placeholder}
+            placeholderTextColor="#94a3b8"
             keyboardType={name === 'remarks' ? 'default' : 'numeric'}
             returnKeyType={nextField ? 'next' : 'done'}
             onSubmitEditing={() => focusNext(nextField)}

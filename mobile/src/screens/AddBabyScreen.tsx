@@ -292,6 +292,7 @@ export default function AddBabyScreen() {
             onChangeText={onChange}
             value={value?.toString() || ''}
             placeholder={placeholder}
+            placeholderTextColor="#94a3b8"
             keyboardType={keyboardType}
             returnKeyType={nextField ? 'next' : 'done'}
             onSubmitEditing={() => focusNext(nextField)}
@@ -511,7 +512,14 @@ export default function AddBabyScreen() {
 
             <ScrollView style={{ width: '100%', marginVertical: 12, maxHeight: 300 }}>
               {conflictBabies?.map((baby, idx) => (
-                <View key={idx} style={[styles.conflictInfo, { marginBottom: 8 }]}>
+                <TouchableOpacity 
+                  key={idx} 
+                  style={[styles.conflictInfo, { marginBottom: 8 }]}
+                  onPress={() => {
+                    setConflictBabies(null);
+                    navigation.navigate('BabyDetails', { babyId: baby._id });
+                  }}
+                >
                   {baby.motherImage ? (
                     <Image source={{ uri: baby.motherImage }} style={styles.conflictImg} />
                   ) : (
@@ -525,13 +533,7 @@ export default function AddBabyScreen() {
                     <Text allowFontScaling={false} style={styles.conflictName}>{baby.motherName}</Text>
                     <Text allowFontScaling={false} style={styles.conflictId}>{baby.displayId}</Text>
                   </View>
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => {
-                    setConflictBabies(null);
-                    navigation.navigate('BabyDetails', { babyId: baby._id });
-                  }}>
-                    <Text style={styles.viewBtnText}>View</Text>
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
 
