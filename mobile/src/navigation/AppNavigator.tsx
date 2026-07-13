@@ -9,13 +9,16 @@ import BabiesListScreen from '../screens/BabiesListScreen';
 import BabyDetailsScreen from '../screens/BabyDetailsScreen';
 import AddBabyScreen from '../screens/AddBabyScreen';
 import SampleFormScreen from '../screens/SampleFormScreen';
+import FaceScanScreen from '../screens/FaceScanScreen';
+import { FaceScanResult } from '../services/faceService';
 
 export type RootStackParamList = {
   Login: undefined;
   BabiesList: undefined;
   BabyDetails: { babyId: string };
-  AddBaby: { babyId?: string } | undefined;
+  AddBaby: { babyId?: string; prefilledImageUri?: string; prefilledFaceScan?: FaceScanResult } | undefined;
   SampleForm: { babyId: string; sampleId?: string }; // if sampleId exists, edit mode
+  FaceScan: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +43,7 @@ export default function AppNavigator() {
             <Stack.Screen name="BabyDetails" component={BabyDetailsScreen} />
             <Stack.Screen name="AddBaby" component={AddBabyScreen} />
             <Stack.Screen name="SampleForm" component={SampleFormScreen} />
+            <Stack.Screen name="FaceScan" component={FaceScanScreen} />
           </>
         )}
       </Stack.Navigator>

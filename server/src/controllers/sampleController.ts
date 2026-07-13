@@ -8,6 +8,8 @@ export const deleteSample = async (req: Request, res: Response, next: NextFuncti
     const sample = await Sample.findById(req.params.id);
     
     if (!sample) {
+      const fs = require('fs');
+      fs.appendFileSync('C:\\Users\\Lenovo\\.vscode\\Med_Data_Erp\\error.log', new Date().toISOString() + ' Error name: 404 | Error message: Sample not found | URL: ' + req.originalUrl + '\n');
       res.status(404).json({ message: 'Sample not found' });
       return;
     }
@@ -27,6 +29,8 @@ export const updateSample = async (req: Request, res: Response, next: NextFuncti
 
     const sample = await Sample.findById(req.params.id);
     if (!sample) {
+      const fs = require('fs');
+      fs.appendFileSync('C:\\Users\\Lenovo\\.vscode\\Med_Data_Erp\\error.log', new Date().toISOString() + ' Error name: 404 | Error message: Sample not found | URL: ' + req.originalUrl + '\n');
       res.status(404).json({ message: 'Sample not found' });
       return;
     }

@@ -36,7 +36,8 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-camera"
     ],
     "extra": {
       "eas": {

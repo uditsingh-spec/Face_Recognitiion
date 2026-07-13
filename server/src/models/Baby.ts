@@ -4,6 +4,7 @@ export interface IBaby extends Document {
   displayId: string;
   motherName: string;
   motherImage?: string;
+  motherFaceEmbedding?: number[];
   motherAge: number;
   gender: 'Male' | 'Female';
   weight?: number;
@@ -25,7 +26,8 @@ const babySchema = new Schema<IBaby>(
     displayId: { type: String, required: true, unique: true },
     motherName: { type: String, required: true },
     motherImage: { type: String },
-    motherAge: { type: Number, required: true },
+    motherFaceEmbedding: { type: [Number], select: false },
+    motherAge: { type: Number },
     gender: { type: String, enum: ['Male', 'Female'], required: true },
     weight: { type: Number },
     gestationalAge: { type: String, required: true },
@@ -41,7 +43,6 @@ const babySchema = new Schema<IBaby>(
   { timestamps: true }
 );
 
-babySchema.index({ displayId: 1 });
 babySchema.index({ motherName: 1 });
 babySchema.index({ registeredAt: -1 });
 

@@ -4,7 +4,7 @@ import { moderateScale } from 'react-native-size-matters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, Search, LogOut, Pencil, Trash2, Users, ArrowRight } from 'lucide-react-native';
+import { Plus, Search, LogOut, Pencil, Trash2, Users, ArrowRight, ScanFace } from 'lucide-react-native';
 import api from '../services/api';
 import { getDB } from '../services/db';
 import { useAuthStore } from '../store/useAuthStore';
@@ -486,6 +486,14 @@ export default function BabiesListScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Scan Face FAB — identify existing mother or start a prefilled new registration */}
+      <TouchableOpacity
+        style={styles.scanFab}
+        onPress={() => navigation.navigate('FaceScan')}
+      >
+        <ScanFace size={24} color="#ffffff" />
+      </TouchableOpacity>
+
       {/* Floating Action Button */}
       <TouchableOpacity 
         style={styles.fab}
@@ -527,5 +535,6 @@ const styles = StyleSheet.create({
   weightText: { fontSize: moderateScale(11, 0.3), fontWeight: '600', color: '#0f766e' },
   registeredDate: { fontSize: moderateScale(11, 0.3), color: '#94a3b8', fontWeight: '500' },
 
-  fab: { position: 'absolute', bottom: moderateScale(32), right: moderateScale(24), backgroundColor: '#4f46e5', width: moderateScale(56), height: moderateScale(56), borderRadius: moderateScale(28), justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 }
+  fab: { position: 'absolute', bottom: moderateScale(32), right: moderateScale(24), backgroundColor: '#4f46e5', width: moderateScale(56), height: moderateScale(56), borderRadius: moderateScale(28), justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
+  scanFab: { position: 'absolute', bottom: moderateScale(100), right: moderateScale(24), backgroundColor: '#16a34a', width: moderateScale(48), height: moderateScale(48), borderRadius: moderateScale(24), justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 }
 });

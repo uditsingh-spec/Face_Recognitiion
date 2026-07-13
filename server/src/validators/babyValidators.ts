@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const babySchema = z.object({
   motherName: z.string().min(2, 'Mother Name must be at least 2 characters'),
-  motherAge: z.preprocess((val) => Number(val), z.number().min(18).max(60)),
+  motherAge: z.preprocess((val) => val === undefined || val === '' || val === null ? undefined : Number(val), z.number().min(18).max(60)).optional(),
   registeredAt: z.string().optional(),
   dob: z.string().min(1, 'Date of Birth is required'),
   

@@ -1,6 +1,7 @@
 import { getDB } from './db';
 import api from './api';
 import { DeviceEventEmitter } from 'react-native';
+import { renameFaceIndexEntry } from './faceIndexService';
 
 let isSyncing = false;
 
@@ -75,12 +76,15 @@ export const syncPendingRequests = async () => {
           if (Array.isArray(response.data) && response.data.length >= 2) {
             idMap[`${row.temp_id}-A`] = response.data[0]._id;
             idMap[`${row.temp_id}-B`] = response.data[1]._id;
+            await renameFaceIndexEntry(`${row.temp_id}-A`, response.data[0]._id, response.data[0].displayId, row.image_uri);
+            await renameFaceIndexEntry(`${row.temp_id}-B`, response.data[1]._id, response.data[1].displayId, row.image_uri);
             await db.runAsync(`UPDATE sync_queue SET url = REPLACE(url, ?, ?) WHERE url LIKE ?`, `${row.temp_id}-A`, response.data[0]._id, `%${row.temp_id}-A%`);
             await db.runAsync(`UPDATE sync_queue SET url = REPLACE(url, ?, ?) WHERE url LIKE ?`, `${row.temp_id}-B`, response.data[1]._id, `%${row.temp_id}-B%`);
             await db.runAsync(`UPDATE sync_queue SET payload_json = REPLACE(payload_json, ?, ?) WHERE payload_json LIKE ?`, `${row.temp_id}-A`, response.data[0]._id, `%${row.temp_id}-A%`);
             await db.runAsync(`UPDATE sync_queue SET payload_json = REPLACE(payload_json, ?, ?) WHERE payload_json LIKE ?`, `${row.temp_id}-B`, response.data[1]._id, `%${row.temp_id}-B%`);
           } else if (response.data._id) {
             idMap[row.temp_id] = response.data._id;
+            await renameFaceIndexEntry(row.temp_id, response.data._id, response.data.displayId, row.image_uri);
             await db.runAsync(`UPDATE sync_queue SET url = REPLACE(url, ?, ?) WHERE url LIKE ?`, row.temp_id, response.data._id, `%${row.temp_id}%`);
             await db.runAsync(`UPDATE sync_queue SET payload_json = REPLACE(payload_json, ?, ?) WHERE payload_json LIKE ?`, row.temp_id, response.data._id, `%${row.temp_id}%`);
           }
@@ -95,7 +99,9 @@ export const syncPendingRequests = async () => {
                  try {
                     const cachedSamples = await db.getFirstAsync<{data: string}>('SELECT data FROM cache WHERE key = ?', `samples_${bId}`);
                     if (cachedSamples) {
-                       const sList = JSON.parse(cachedSamples.data);
+                       let sList = JSON.parse(cachedSamples.data);
+                       // Remove the local pending sample
+                       sList = sList.filter((s: any) => s._id !== row.temp_id);
                        sList.push(response.data);
                        await db.runAsync('UPDATE cache SET data = ? WHERE key = ?', JSON.stringify(sList), `samples_${bId}`);
                     } else {
@@ -107,7 +113,9 @@ export const syncPendingRequests = async () => {
               try {
                  const cachedList = await db.getFirstAsync<{data: string}>("SELECT data FROM cache WHERE key = 'babies_list'");
                  if (cachedList) {
-                    const list = JSON.parse(cachedList.data);
+                    let list = JSON.parse(cachedList.data);
+                    // Remove the local pending baby
+                    list = list.filter((b: any) => b._id !== row.temp_id);
                     if (Array.isArray(response.data)) {
                        list.unshift(...response.data);
                     } else {

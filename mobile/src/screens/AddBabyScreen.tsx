@@ -13,8 +13,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import api from '../services/api';
 import ImageModal from '../components/ImageModal';
+import FaceCaptureModal from '../components/FaceCaptureModal';
+import { FaceScanResult, getFaceEmbedding } from '../services/faceService';
 import { v4 } from 'uuid';
 import { queueRequest } from '../services/syncService';
+import { upsertFaceIndexEntry } from '../services/faceIndexService';
 
 const parseWeight = (val: any) => {
   if (val === '' || val == null) return undefined;
@@ -24,9 +27,15 @@ const parseWeight = (val: any) => {
   return num;
 };
 
+const parseNumber = (val: any) => {
+  if (val === '' || val == null) return undefined;
+  const num = Number(val);
+  return isNaN(num) ? undefined : num;
+};
+
 const newBabySchema = z.object({
   motherName: z.string().min(2, 'Mother Name must be at least 2 characters'),
-  motherAge: z.preprocess((val) => Number(val), z.number().min(18, 'Min age 18').max(60, 'Max age 60')),
+  motherAge: z.preprocess(parseNumber, z.number({ invalid_type_error: 'Age must be a valid number' }).min(18, 'Min age 18').max(60, 'Max age 60')).optional(),
   dob: z.string().min(1, 'DOB is required'),
   termStatus: z.enum(['Term', 'Preterm']),
   isTwin: z.boolean(),
@@ -71,11 +80,16 @@ export default function AddBabyScreen() {
   const navigation = useNavigation();
   const route = useRoute<AddBabyRouteProp>();
   const babyId = route.params?.babyId;
+  const prefilledImageUri = route.params?.prefilledImageUri;
+  const prefilledFaceScan = route.params?.prefilledFaceScan;
 
   const [loading, setLoading] = useState(false);
   const [conflictBabies, setConflictBabies] = useState<any[] | null>(null);
   const [fetching, setFetching] = useState(!!babyId);
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(prefilledImageUri ?? null);
+  const [showFaceCapture, setShowFaceCapture] = useState(false);
+  const [faceScan, setFaceScan] = useState<FaceScanResult | null>(prefilledFaceScan ?? null);
+  const [isScanningFace, setIsScanningFace] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const inputRefs = useRef<Record<string, TextInput | null>>({});
 
@@ -150,14 +164,32 @@ export default function AddBabyScreen() {
 
   const isTwin = watch('isTwin');
 
+  // Any photo — whether from gallery, camera, or the dedicated Face Scan
+  // button — silently generates a face embedding in the background. This
+  // ensures every baby with a photo becomes findable later via offline
+  // face search, not just ones added through the Face Scan button.
+  const runBackgroundFaceScan = async (uri: string) => {
+    setIsScanningFace(true);
+    try {
+      const result = await getFaceEmbedding(uri);
+      setFaceScan(result); // null if no face found — photo still saves normally
+    } catch (e) {
+      console.log('Background face scan skipped:', e);
+      setFaceScan(null);
+    } finally {
+      setIsScanningFace(false);
+    }
+  };
+
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
       quality: 0.5,
     });
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      setImageUri(uri);
+      runBackgroundFaceScan(uri);
     }
   };
 
@@ -169,12 +201,18 @@ export default function AddBabyScreen() {
     }
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
       quality: 0.5,
     });
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      setImageUri(uri);
+      runBackgroundFaceScan(uri);
     }
+  };
+
+  const handleFaceCaptured = (uri: string, scan: FaceScanResult | null) => {
+    setImageUri(uri);
+    setFaceScan(scan);
   };
 
   const onSubmit = async (data: any, forceSave: boolean = false) => {
@@ -193,6 +231,11 @@ export default function AddBabyScreen() {
       append('isTwin', data.isTwin);
       append('dob', data.dob);
       append('termStatus', data.termStatus);
+
+      if (faceScan) {
+        formData.append('motherFaceEmbedding', JSON.stringify(faceScan.embedding));
+        jsonPayload.motherFaceEmbedding = JSON.stringify(faceScan.embedding);
+      }
 
       if (data.gestationalAgeWeeks) {
         let ga = `${data.gestationalAgeWeeks}W`;
@@ -243,10 +286,28 @@ export default function AddBabyScreen() {
       try {
         if (babyId) {
           await api.put(`/babies/${babyId}`, formData);
+          if (faceScan && babyId) {
+            await upsertFaceIndexEntry({
+              babyId,
+              motherName: data.motherName,
+              displayId: '',
+              embedding: faceScan.embedding,
+              motherImage: finalImg,
+            });
+          }
           Alert.alert('Success', 'Baby updated successfully!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else {
           const res = await api.post('/babies', formData);
           console.log('BABY ADDED SUCCESSFULLY - SERVER RESPONSE:', res.status, res.data);
+          if (faceScan) {
+            const finalImg = imageToUpload || imageUri;
+            if (Array.isArray(res.data) && res.data.length >= 2) {
+              await upsertFaceIndexEntry({ babyId: res.data[0]._id, motherName: data.motherName, displayId: res.data[0].displayId ?? '', embedding: faceScan.embedding, motherImage: finalImg });
+              await upsertFaceIndexEntry({ babyId: res.data[1]._id, motherName: data.motherName, displayId: res.data[1].displayId ?? '', embedding: faceScan.embedding, motherImage: finalImg });
+            } else if (res.data?._id) {
+              await upsertFaceIndexEntry({ babyId: res.data._id, motherName: data.motherName, displayId: res.data.displayId ?? '', embedding: faceScan.embedding, motherImage: finalImg });
+            }
+          }
           Alert.alert('Success', 'Baby added successfully!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         }
       } catch (apiError: any) {
@@ -257,6 +318,16 @@ export default function AddBabyScreen() {
           const method = babyId ? 'put' : 'post';
           
           await queueRequest(url, method, jsonPayload, imageToUpload, tempId);
+          const cacheId = tempId ?? babyId;
+          if (faceScan && cacheId) {
+            const finalImg = imageToUpload || imageUri;
+            if (data.isTwin) {
+              await upsertFaceIndexEntry({ babyId: `${cacheId}-A`, motherName: data.motherName, displayId: 'Pending-Twin A', embedding: faceScan.embedding, motherImage: finalImg });
+              await upsertFaceIndexEntry({ babyId: `${cacheId}-B`, motherName: data.motherName, displayId: 'Pending-Twin B', embedding: faceScan.embedding, motherImage: finalImg });
+            } else {
+              await upsertFaceIndexEntry({ babyId: cacheId, motherName: data.motherName, displayId: 'Pending', embedding: faceScan.embedding, motherImage: finalImg });
+            }
+          }
           Alert.alert('Saved Offline', 'Your data was saved locally and will sync when internet is restored.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else if (apiError.response.status === 409 && apiError.response.data?.code === 'DUPLICATE_BABY') {
           console.log('DUPLICATE CAUGHT:', apiError.response.data);
@@ -405,7 +476,7 @@ export default function AddBabyScreen() {
               <View style={styles.card}>
                 <Text allowFontScaling={false} style={styles.cardTitle}>Mother's Information</Text>
                 {renderInput('motherName', 'Full Name', 'default', 'Mother\'s Name', true, 'motherAge')}
-                {renderInput('motherAge', 'e.g. 28', 'numeric', 'Mother\'s Age', true, 'gestationalAgeWeeks')}
+                {renderInput('motherAge', 'e.g. 28', 'numeric', 'Mother\'s Age', false, 'gestationalAgeWeeks')}
 
                 <View style={styles.fieldContainer}>
                   <Text allowFontScaling={false} style={styles.label}>Mother's Photo (Optional)</Text>
@@ -428,6 +499,18 @@ export default function AddBabyScreen() {
                       </TouchableOpacity>
                     </View>
                   )}
+                  <TouchableOpacity
+                    style={[styles.imagePickerBtn, { marginTop: 10, backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}
+                    onPress={() => {
+                      console.log('[AddBabyScreen] Face Scan button pressed');
+                      setShowFaceCapture(true);
+                    }}
+                  >
+                    <Camera size={24} color="#16a34a" />
+                    <Text allowFontScaling={false} style={[styles.imagePickerText, { color: '#16a34a' }]}>
+                      Face Scan (Offline AI){faceScan ? ' ✓' : ''}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -493,9 +576,21 @@ export default function AddBabyScreen() {
                 </>
               )}
 
-              <TouchableOpacity style={styles.button} onPress={handleSubmit((data) => onSubmit(data, false))} disabled={loading}>
-                {loading ? <ActivityIndicator color="#ffffff" /> : <Text allowFontScaling={false} style={styles.buttonText}>{babyId ? 'Update Baby' : 'Save & Register Baby'}</Text>}
-              </TouchableOpacity>
+            <TouchableOpacity 
+            style={[styles.button, (loading || isScanningFace) && { opacity: 0.7 }]} 
+            onPress={handleSubmit(
+              (data) => onSubmit(data, false),
+              (errors) => {
+                console.log('Validation Errors:', errors);
+                const firstError = Object.values(errors)[0]?.message || 'Please check the form for errors.';
+                Alert.alert('Validation Error', firstError as string);
+              }
+            )} 
+            disabled={loading || isScanningFace}
+          >
+            {loading || isScanningFace ? <ActivityIndicator color="#fff" /> : <Text allowFontScaling={false} style={styles.buttonText}>{babyId ? 'Update Baby' : 'Add Baby'}</Text>}
+            {isScanningFace && !loading && <Text allowFontScaling={false} style={[styles.buttonText, { marginLeft: 8 }]}>Analyzing Face...</Text>}
+          </TouchableOpacity>
             </View>
           </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
@@ -548,6 +643,12 @@ export default function AddBabyScreen() {
           </View>
         </View>
       </Modal>
+
+      <FaceCaptureModal
+        visible={showFaceCapture}
+        onClose={() => setShowFaceCapture(false)}
+        onCaptured={handleFaceCaptured}
+      />
     </SafeAreaView>
   );
 }

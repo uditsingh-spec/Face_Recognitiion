@@ -7,6 +7,7 @@ import { useAuthStore } from './src/store/useAuthStore';
 import { View, ActivityIndicator, Text, TextInput } from 'react-native';
 import { NetworkSyncWrapper } from './src/components/NetworkSyncWrapper';
 import { GlobalSyncBanner } from './src/components/GlobalSyncBanner';
+import { initFaceService } from './src/services/faceService';
 
 // @ts-ignore
 if (Text.defaultProps == null) Text.defaultProps = {};
@@ -24,6 +25,10 @@ export default function App() {
 
   useEffect(() => {
     restoreSession();
+    // Preload the offline face-recognition models in the background so the
+    // first scan in AddBabyScreen is instant. Non-blocking — app UI is not
+    // held up if this takes a moment on slower devices.
+    initFaceService().catch((e) => console.log('Face model preload failed:', e));
   }, [restoreSession]);
 
   if (isLoading) {

@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "install-all": "npm install && npm run install-deps",
-    "install-deps": "npm install --prefix server && npm install --prefix client"
+    "install-deps": "npm install --prefix server && npm install --prefix client && npm install --prefix mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

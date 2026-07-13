@@ -45,6 +45,15 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
       }
     }
 
+    let motherFaceEmbedding: number[] | undefined;
+    if (req.body.motherFaceEmbedding) {
+      try {
+        motherFaceEmbedding = JSON.parse(req.body.motherFaceEmbedding);
+      } catch {
+        // Ignore malformed embedding
+      }
+    }
+
     const forceSave = req.body.forceSave === 'true' || req.body.forceSave === true;
 
     if (validatedData.isTwin) {
@@ -100,6 +109,7 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
         displayId: finalDisplayIdA,
         motherName: validatedData.motherName,
         motherImage: motherImageUrl,
+        motherFaceEmbedding,
         motherAge: validatedData.motherAge,
         gender: validatedData.genderA,
         weight: validatedData.weightA,
@@ -117,6 +127,7 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
         displayId: finalDisplayIdB,
         motherName: validatedData.motherName,
         motherImage: motherImageUrl,
+        motherFaceEmbedding,
         motherAge: validatedData.motherAge,
         gender: validatedData.genderB,
         weight: validatedData.weightB,
@@ -166,6 +177,7 @@ export const createBaby = async (req: Request, res: Response, next: NextFunction
         displayId,
         motherName: validatedData.motherName,
         motherImage: motherImageUrl,
+        motherFaceEmbedding,
         motherAge: validatedData.motherAge,
         gender: validatedData.gender,
         weight: validatedData.weight,
@@ -462,6 +474,14 @@ export const updateBaby = async (req: Request, res: Response, next: NextFunction
       }
     }
 
+    if (req.body.motherFaceEmbedding) {
+      try {
+        baby.motherFaceEmbedding = JSON.parse(req.body.motherFaceEmbedding);
+      } catch {
+        // Ignore malformed embedding
+      }
+    }
+
     // Recalculate displayId
     let newDisplayId = await generateDisplayId(
       baby.motherName,
@@ -477,6 +497,73 @@ export const updateBaby = async (req: Request, res: Response, next: NextFunction
 
     baby.displayId = newDisplayId;
     await baby.save();
+
+    // Sync shared fields to the sibling twin if this is a twin
+    if (baby.isTwin) {
+      try {
+        const oneMinuteBefore = new Date(baby.createdAt.getTime() - 60000);
+        const oneMinuteAfter = new Date(baby.createdAt.getTime() + 60000);
+        
+        const sibling = await Baby.findOne({
+          isTwin: true,
+          _id: { $ne: baby._id },
+          createdAt: { $gte: oneMinuteBefore, $lte: oneMinuteAfter }
+        });
+
+        if (sibling) {
+          let siblingNeedsSave = false;
+
+          if (req.file && sibling.motherImage !== baby.motherImage) {
+            sibling.motherImage = baby.motherImage;
+            siblingNeedsSave = true;
+          }
+          if (req.body.motherFaceEmbedding) {
+            sibling.motherFaceEmbedding = baby.motherFaceEmbedding;
+            siblingNeedsSave = true;
+          }
+          
+          if (validatedData.motherName !== undefined && sibling.motherName !== baby.motherName) {
+            sibling.motherName = baby.motherName;
+            siblingNeedsSave = true;
+          }
+          if (validatedData.motherAge !== undefined && sibling.motherAge !== baby.motherAge) {
+            sibling.motherAge = baby.motherAge;
+            siblingNeedsSave = true;
+          }
+          if (validatedData.dob !== undefined && sibling.dob?.getTime() !== baby.dob?.getTime()) {
+            sibling.dob = baby.dob;
+            siblingNeedsSave = true;
+          }
+          if (validatedData.gestationalAge !== undefined && sibling.gestationalAge !== baby.gestationalAge) {
+            sibling.gestationalAge = baby.gestationalAge;
+            siblingNeedsSave = true;
+          }
+          if (validatedData.termStatus !== undefined && sibling.termStatus !== baby.termStatus) {
+            sibling.termStatus = baby.termStatus;
+            siblingNeedsSave = true;
+          }
+
+          if (siblingNeedsSave) {
+            // Need to update displayId for sibling if gestationalAge or motherName changed
+            let siblingDisplayId = await generateDisplayId(
+              sibling.motherName,
+              sibling.weight,
+              sibling.gender!,
+              sibling.gestationalAge!,
+              sibling._id.toString()
+            );
+            if (sibling.twinLabel) {
+              siblingDisplayId = `${siblingDisplayId}-T${sibling.twinLabel}`;
+            }
+            sibling.displayId = siblingDisplayId;
+            
+            await sibling.save();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync data to twin sibling:', err);
+      }
+    }
 
     res.json(baby);
   } catch (error) {

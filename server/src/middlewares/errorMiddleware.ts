@@ -12,7 +12,7 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   let message = err.message;
   
   const fs = require('fs');
-  fs.appendFileSync('C:\\Users\\Lenovo\\.vscode\\Med_Data_Erp\\error.log', new Date().toISOString() + ' Error name: ' + err.name + ' | Error message: ' + err.message + ' | Stack: ' + err.stack + '\n');
+  fs.appendFileSync('C:\\Users\\Lenovo\\.vscode\\Med_Data_Erp\\error.log', new Date().toISOString() + ' Error name: ' + err.name + ' | Error message: ' + err.message + ' | URL: ' + req.originalUrl + ' | Body: ' + JSON.stringify(req.body) + ' | Stack: ' + err.stack + '\n');
 
   if (err instanceof ZodError || err.name === 'ZodError') {
     statusCode = 400;

@@ -127,17 +127,16 @@ export default function BabyDetailsScreen() {
         try {
           const db = getDB();
           const cachedBaby = await db.getFirstAsync<{data: string}>('SELECT data FROM cache WHERE key = ?', `baby_${babyId}`);
-          let babyData = null;
-          if (cachedBaby) {
-            babyData = JSON.parse(cachedBaby.data);
-          } else {
+          let localBaby = cachedBaby ? JSON.parse(cachedBaby.data) : null;
+
+          if (!localBaby) {
             const cachedList = await db.getFirstAsync<{data: string}>('SELECT data FROM cache WHERE key = ?', 'babies_list');
             if (cachedList) {
               const list = JSON.parse(cachedList.data);
-              babyData = list.find((b: any) => b._id === babyId);
+              localBaby = list.find((b: any) => b._id === babyId);
             }
           }
-          if (babyData) setBaby(babyData);
+          if (localBaby) setBaby(localBaby);
           
           const cachedSamples = await db.getFirstAsync<{data: string}>('SELECT data FROM cache WHERE key = ?', `samples_${babyId}`);
           let localSamples = cachedSamples ? JSON.parse(cachedSamples.data) : [];
