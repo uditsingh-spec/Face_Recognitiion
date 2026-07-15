@@ -12,7 +12,9 @@ const FACE_MATCH_THRESHOLD = 0.5;
 const euclideanDistance = (a: number[], b: number[]): number => {
   let sum = 0;
   for (let i = 0; i < a.length; i++) {
-    const diff = a[i] - b[i];
+    const valA = a[i] as number;
+    const valB = b[i] as number;
+    const diff = valA - valB;
     sum += diff * diff;
   }
   return Math.sqrt(sum);
