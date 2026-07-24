@@ -6,6 +6,7 @@ import RNFS from 'react-native-fs';
 import { decodeJpeg } from '@tensorflow/tfjs-react-native';
 import { Asset } from 'expo-asset';
 import { ImageManipulator } from 'expo-image-manipulator';
+import { toByteArray } from 'base64-js';
 
 let modelsLoaded = false;
 let loadingPromise: Promise<void> | null = null;
@@ -193,19 +194,12 @@ export const imageToInputTensor = async (imageUri: string, targetWidth: number =
 
   if (!resized?.base64) throw new Error('ImageManipulator returned no base64 data');
 
-  // Decode JPEG – this is inherently sequential, but we keep it minimal
-  const raw = await new Promise<Uint8Array>((resolve, reject) => {
-    const arr = new Uint8Array(resized.base64.length);
-    for (let i = 0; i < resized.base64.length; i++) arr[i] = resized.base64.charCodeAt(i);
-    // react‑native-fs can read the base64 directly, but for simplicity we keep the async path
-    RNFS.readFile(`data:${resized.base64}`, 'base64')
-      .then(data => resolve(new Uint8Array(data)))
-      .catch(reject);
-  });
+  // Decode JPEG base64 into Uint8Array synchronously using base64-js
+  const raw = toByteArray(resized.base64);
 
   // Cast to float32 tensor – TensorFlow handles the conversion internally
   await tf.nextFrame(); // keep rhythm with existing code
-  const decoded = decodeJpeg(resized.base64);
+  const decoded = decodeJpeg(raw);
   const float32 = tf.cast(decoded, 'float32'); // [H, W, 3] in [0,255]
 
   // Add batch dimension → [1, H, W, 3]
