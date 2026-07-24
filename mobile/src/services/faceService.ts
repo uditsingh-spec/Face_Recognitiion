@@ -71,22 +71,10 @@ const loadModelWeights = async (manifestAsset: any, binAsset: any, net: any) => 
   await asset.downloadAsync();
   const uri = asset.localUri || asset.uri;
 
-  // If we already cached the binary, reuse it
-  const cached = await readCache();
-  if (cached?.[net.name] === uri) {
-    // Already cached – skip download
-  } else {
-    const base64 = await RNFS.readFile(uri, 'base64');
-    const weightData = new ArrayBuffer(base64.length);
-    const view = new Uint8Array(weightData);
-    for (let i = 0; i < base64.length; i++) view[i] = base64.charCodeAt(i);
-    const weightMap = await tf.io.decodeWeights(view, weightSpecs);
-    await net.loadFromWeightMap(weightMap);
-    // Store the uri in cache so we don't re‑download
-    const newCache = await readCache() || {};
-    newCache[net.name] = uri;
-    await writeCache(newCache);
-  }
+  const base64 = await RNFS.readFile(uri, 'base64');
+  const view = toByteArray(base64);
+  const weightMap = await tf.io.decodeWeights(view, weightSpecs);
+  await net.loadFromWeightMap(weightMap);
 };
 
 // ---------------------------------------------------------------------------
